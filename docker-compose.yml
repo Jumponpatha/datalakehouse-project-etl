@@ -16,12 +16,35 @@
 # under the License.
 ---
 services:
+  nessie:
+    image: projectnessie/nessie:latest
+    container_name: nessie
+    environment:
+      - QUARKUS_PROFILE=prod
+      - QUARKUS_HTTP_PORT=19120
+      - QUARKUS_LOG_CONSOLE_FORMAT=%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{1.}] (%t) %s%e%n
+      - QUARKUS_LOG_LEVEL=INFO
+      - nessie.catalog.default-warehouse=warehouse
+      - nessie.catalog.warehouses.warehouse.location=s3://warehouse/
+      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.catalog.service.s3.default-options.path-style-access=true
+      - nessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
+      - nessie.catalog.secrets.access-key.name=admin
+      - nessie.catalog.secrets.access-key.secret=password
+      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+    volumes:
+      - ./storage/nessie-data:/nessie/data  # Mount local directory to persist RocksDB data
+    ports:
+      - "19120:19120"  # Expose Nessie API port
+    networks:
+      lakehouse_prod_network:
+
   spark-iceberg:
     image: tabulario/spark-iceberg
     container_name: spark-iceberg
     build: spark/
     networks:
-      iceberg_net:
+      lakehouse_prod_network:
     depends_on:
       - rest
       - minio
@@ -42,7 +65,7 @@ services:
     image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
     networks:
-      iceberg_net:
+      lakehouse_prod_network:
     ports:
       - 8181:8181
     environment:
@@ -52,6 +75,7 @@ services:
       - CATALOG_WAREHOUSE=s3://warehouse/
       - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
       - CATALOG_S3_ENDPOINT=http://minio:9000
+
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
@@ -60,7 +84,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - MINIO_DOMAIN=minio
     networks:
-      iceberg_net:
+      lakehouse_prod_network:
         aliases:
           - warehouse.minio
     ports:
@@ -77,7 +101,7 @@ services:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: mc
     networks:
-      iceberg_net:
+      lakehouse_prod_network:
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -90,7 +114,18 @@ services:
       /usr/bin/mc anonymous set public minio/warehouse;
       tail -f /dev/null
       "
-
+  dremio:
+    image: dremio/dremio-oss:latest
+    ports:
+      - 9047:9047
+      - 31010:31010
+      - 32010:32010
+      - 45678:45678
+    container_name: dremio
+    environment:
+      - DREMIO_JAVA_SERVER_EXTRA_OPTS=-Dpaths.dist=file:///opt/dremio/data/dist
+    networks:
+      lakehouse_prod_network:
 
 networks:
-  iceberg_net:
+  lakehouse_prod_network:
