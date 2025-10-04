@@ -27,7 +27,7 @@ services:
       - minio
     volumes:
       - ./warehouse:/home/iceberg/warehouse
-      - ./notebooks:/home/iceberg/notebooks/notebooks
+      - ./spark/notebooks:/home/iceberg/notebooks/notebooks
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -67,6 +67,9 @@ services:
       - 9001:9001
       - 9000:9000
     command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - ./storage/minio-data:/data
+
   mc:
     depends_on:
       - minio
@@ -87,5 +90,7 @@ services:
       /usr/bin/mc anonymous set public minio/warehouse;
       tail -f /dev/null
       "
+
+
 networks:
   iceberg_net:
