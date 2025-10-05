@@ -190,3 +190,8 @@ notebooks
 storage
 spark/notebooks/.Trash-0
 .vscode
+
+
+airflow/logs
+airflow/config
+airflow/plugin
