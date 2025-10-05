@@ -3,7 +3,7 @@ from airflow.sdk import dag, task
 from airflow.providers.standard.operators.python import PythonOperator
 
 # JOB: TEST_ETL_PYTHON_DAG_001
-# DESCRIPTION: A simple test ETL DAG with Extract → Transform → Load with Python Operator
+# DESCRIPTION: A simple test ETL DAG with Extract → Transform → Load with Python Operator.
 
 @dag(
     dag_id="test_etl_python_dag_001",
