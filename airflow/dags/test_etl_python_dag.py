@@ -8,7 +8,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 @dag(
     dag_id="test_etl_python_dag_001",
     start_date=datetime.datetime(2025, 10, 5),
-    schedule="@daily",
+    schedule=None,
     catchup=False,
     tags=["test", "etl"],
     description="A simple test ETL DAG with Extract → Transform → Load"

@@ -1,5 +1,5 @@
 jupyter==1.1.1
-spylon-kernel==0.4.1
+# spylon-kernel==0.4.1
 pyiceberg[pyarrow,duckdb,pandas]==0.9.1
 jupysql==0.11.1
 matplotlib==3.9.4

@@ -4,17 +4,17 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.operators.empty import EmptyOperator
 
 @dag(
-    dag_id="test_spark_airflow_dag_002",
+    dag_id="test_etl_spark_airflow_dag_003",
     start_date=datetime.datetime(2025, 10, 5),
     schedule=None,
     catchup=False,
     tags=["test", "spark"]
 )
-def test_spark_dag():
+def test_etl_spark_dag():
     spark_task = SparkSubmitOperator(
-        task_id="run_spark_job",
-        application="/opt/airflow/utils/test/test_spark.py",
-        name="test_spark_airflow",
+        task_id="run_etl_spark_job",
+        application="/opt/airflow/utils/test/test_etl_spark.py",
+        name="test_etl_spark_airflow",
         conn_id="spark_session",  # default Spark connection in Airflow
         verbose=True
     )
@@ -22,4 +22,4 @@ def test_spark_dag():
     spark_task
 
 # Instantiate DAG
-etl_spark_dag = test_spark_dag()
+etl_spark_test_dag = test_etl_spark_dag()

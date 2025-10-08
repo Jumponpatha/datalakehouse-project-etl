@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 # syntax=docker/dockerfile:1
-FROM python:3.10-bullseye
+FROM python:3.12-bullseye
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -34,7 +34,7 @@ COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # Add scala kernel via spylon-kernel
-RUN python3 -m spylon_kernel install
+# RUN python3 -m spylon_kernel install
 
 # Optional env variables
 ENV SPARK_HOME=${SPARK_HOME:-"/opt/spark"}
