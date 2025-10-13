@@ -41,22 +41,42 @@ def spark_conn():
         logging.error("Cannot connect to Spark session: ", e)
         raise
 
-# Transform HRIS data with Spark
-def transfrom_hris_data(data):
+# Load raw HRIS data with Spark
+def load_data_into_s3_minio(data, preview_rows, mode, catalog, schema, table_name):
+    """
+    Load data into S3 MinIO via Spark + Iceberg.
+    """
+
+    # Spark Session
     spark = spark_conn()
 
+    # Check DataFrame type to SparkDataFrame
     if isinstance(data, SparkDataFrame):
         logging.info(f"A table is SparkDataFrame.")
         df_spark = data
     elif isinstance(data, pd.DataFrame):
-        print(f"A table is Pandas. The process will transform into SparkDF")
+        logging.info(f"A table is Pandas. The process will transform into SparkDF")
         df_spark = spark.createDataFrame(data)
     else:
-        print("This is neither a Spark nor a Pandas DataFrame / No have Data")
+        logging.info("This is neither a Spark nor a Pandas DataFrame / No have Data")
+
+    # Preview the data before load (Spark DataFrame)
+    logging.info("Data schema:")
+    df_spark.printSchema()
+    logging.info(f"Preview first {preview_rows} rows:")
+    df_spark.show(preview_rows, truncate=False)
 
     # Create Catalog and Database if not exists
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse_prod_catalog.test_db;")
-    spark.sql("SHOW NAMESPACES IN lakehouse_prod_catalog").show()
+    spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{schema};")
+    logging.info(f"Namespace '{catalog}.{schema}' is READY.")
+    spark.sql(f"SHOW NAMESPACES IN {schema}").show()
 
-    df_spark.write.mode("overwrite").format("parquet").saveAsTable("lakehouse_prod_catalog.test_db.test_table_004")
+    try:
+        df_spark.write.mode(mode).format("parquet").saveAsTable(f"{catalog}.{schema}.{table_name}")
+    except Exception as e:
+        logging.error(f"Failed to load data into {catalog}.{schema}.{table_name}: {e}")
+        raise
+
+    # Stop the Spark Session
     spark.stop()
+    logging.info("SparkSession stopped.")

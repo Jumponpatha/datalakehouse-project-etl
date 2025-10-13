@@ -392,6 +392,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
     ports:
+      - 7070:7070
       - 8888:8888
       - 8080:8080
       - 10000:10000
