@@ -5,17 +5,17 @@ from airflow.sdk import dag, task
 from airflow.providers.standard.operators.python import PythonOperator
 
 @dag(
-    dag_id="etl_hris_to_bronze_lakehouse_dag",
+    dag_id="etl_hris_to_silver_lakehouse_dag",
     start_date=datetime.datetime(2025, 10, 5),
-    schedule='@weekly',
+    schedule='* 30 * * *',
     catchup=False,
-    tags=["HRIS","lakehouse", "etl", "raw", "bronze"],
+    tags=["HRIS","lakehouse", "etl", "transformed", "silver"],
     description="ETL process to ingest core Human Resources Management System (HRMS) tables \
     into the raw and standardized layers of the Data Lakehouse",
     default_args={"retries": 2},
 )
 
-def test_etl_dag():
+def etl_hris_to_silver_lakehouse_dag():
 
     # Extract data
     @task(task_id="extract_hris_data")
@@ -26,6 +26,7 @@ def test_etl_dag():
 
         df = extract_csv_from_lake_s3(bucket=bucket, folder=folder, filename=filename)
         return df
+
     # Load data
     @task(task_id="load_data_into_s3")
     def load(transformed_data):
@@ -46,4 +47,4 @@ def test_etl_dag():
     # extract >> load
 
 # Instantiate DAG
-etl_dag = test_etl_dag()
+etl_dag = etl_hris_to_silver_lakehouse_dag()

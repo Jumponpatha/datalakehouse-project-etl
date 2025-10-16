@@ -3,8 +3,8 @@ import pandas as pd
 import logging
 from airflow.sdk import Variable
 from pyspark.sql import SparkSession
-# from pyspark.sql.types import StructType, StructField, DoubleType, IntegerType, StringType, FloatType
 from pyspark.sql import DataFrame as SparkDataFrame
+import pyspark.sql.functions as F
 
 # AWS MinIO - Credential
 aws_access_key_id = Variable.get("AWS_ACCESS_KEY_ID")
@@ -14,7 +14,7 @@ aws_secret_access_key = Variable.get("AWS_SECRET_ACCESS_KEY")
 def spark_conn():
     try:
         spark = (
-            SparkSession.builder.appName("Load_data_into_S3")
+            SparkSession.builder.appName("Transform_data_s3")
             # .master('spark://c33c0029f634:7077')
             .config("spark.jars.packages",
                     "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0,"
@@ -25,7 +25,7 @@ def spark_conn():
             .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
             .config("spark.sql.catalog.lakehouse_prod_catalog", "org.apache.iceberg.spark.SparkCatalog")
             .config("spark.sql.catalog.lakehouse_prod_catalog.type", "nessie")  # <--- use nessie, not rest
-            .config("spark.sql.catalog.lakehouse_prod_catalog.uri", "http://nessie:19120/api/v2")  # <--- correct URL
+            .config("spark.sql.catalog.lakehouse_prod_catalog.uri", "http://nessie:19120/api/v1")  # <--- correct URL
             .config("spark.sql.catalog.lakehouse_prod_catalog.warehouse", "s3a://warehouse/")
             .config("spark.sql.catalog.lakehouse_prod_catalog.ref", "main")  # <--- default Nessie branch
             .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")   # MinIO endpoint
@@ -43,8 +43,11 @@ def spark_conn():
 
 # Transform HRIS data with Spark
 def transfrom_hris_data(data):
+
+    # Spark Session
     spark = spark_conn()
 
+    # Check DataFrame type to SparkDataFrame
     if isinstance(data, SparkDataFrame):
         logging.info(f"A table is SparkDataFrame.")
         df_spark = data
@@ -54,9 +57,22 @@ def transfrom_hris_data(data):
     else:
         print("This is neither a Spark nor a Pandas DataFrame / No have Data")
 
-    # Create Catalog and Database if not exists
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse_prod_catalog.test_db;")
-    spark.sql("SHOW NAMESPACES IN lakehouse_prod_catalog").show()
+    # Count duplicates
+    dup_count_df = df_spark.groupBy(df_spark.columns).count() \
+        .withColumn("dup_count", F.col("count") - 1) \
+        .filter(F.col("dup_count") > 0) \
+        .agg(F.sum("dup_count").alias("duplicate_count"))
+    duplicate_count = dup_count_df.collect()[0]["duplicate_count"] or 0
+    print(f"Number of duplicate rows in {df_spark}: {duplicate_count}")
 
-    df_spark.write.mode("overwrite").format("parquet").saveAsTable("lakehouse_prod_catalog.test_db.test_table_004")
+    # Drop Duplicated
+    df_drop_dup = df_spark.dropDuplicates()
+
+    # Drop NULL in 'Ingested_Time' column
+    cleaned_df_spark = df_drop_dup.dropna(subset=["Ingested_Time"])
+
+    # Stop Spark Session
     spark.stop()
+    logging.info("SparkSession stopped.")
+
+    return cleaned_df_spark
